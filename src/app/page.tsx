@@ -1,29 +1,28 @@
-import { getDb } from '@/lib/db'
+'use client'
+
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Briefcase, Building2, Globe, ClipboardList, CheckSquare, AlertTriangle, TrendingUp, Clock, ArrowRight } from 'lucide-react'
+import { Briefcase, Building2, Globe, ClipboardList, CheckSquare, TrendingUp, Clock, ArrowRight } from 'lucide-react'
+import { jobs as seedJobs, Job } from '@/lib/data'
+import { getCustomJobs, getApplications } from '@/lib/storage'
 import UrgentAlerts from '@/components/UrgentAlerts'
 
-export const dynamic = 'force-dynamic'
-
 export default function Dashboard() {
-  const db = getDb()
+  const [allJobs, setAllJobs] = useState<Job[]>(seedJobs)
+  const [appCount, setAppCount] = useState(0)
 
-  const totalActive = (db.prepare('SELECT COUNT(*) as count FROM jobs WHERE is_active = 1').get() as { count: number }).count
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-  const newThisWeek = (db.prepare('SELECT COUNT(*) as count FROM jobs WHERE created_at > ? AND is_active = 1').get(weekAgo) as { count: number }).count
-  const totalApplications = (db.prepare('SELECT COUNT(*) as count FROM applications').get() as { count: number }).count
-  const upcomingDeadlines = (db.prepare("SELECT COUNT(*) as count FROM jobs WHERE is_active = 1 AND deadline > date('now')").get() as { count: number }).count
+  useEffect(() => {
+    const custom = getCustomJobs()
+    setAllJobs([...seedJobs, ...custom])
+    setAppCount(getApplications().length)
+  }, [])
 
-  const urgentJobs = db.prepare(`
-    SELECT * FROM jobs
-    WHERE is_active = 1 AND (walk_in_date IS NOT NULL OR walk_in_recurring IS NOT NULL)
-    ORDER BY walk_in_date ASC
-  `).all() as Record<string, unknown>[]
-
-  const recentJobs = db.prepare('SELECT * FROM jobs WHERE is_active = 1 ORDER BY created_at DESC LIMIT 5').all() as Record<string, unknown>[]
+  const activeJobs = allJobs.filter(j => j.is_active)
+  const urgentJobs = activeJobs.filter(j => j.walk_in_date || j.walk_in_recurring)
+  const upcomingDeadlines = activeJobs.filter(j => j.deadline && new Date(j.deadline) > new Date()).length
 
   const quickLinks = [
-    { href: '/jobs', label: 'Browse Jobs', icon: Briefcase, color: 'bg-blue-50 text-blue-700 border-blue-200', desc: `${totalActive} active listings` },
+    { href: '/jobs', label: 'Browse Jobs', icon: Briefcase, color: 'bg-blue-50 text-blue-700 border-blue-200', desc: `${activeJobs.length} active listings` },
     { href: '/hospitals', label: 'Hospitals', icon: Building2, color: 'bg-emerald-50 text-emerald-700 border-emerald-200', desc: '27 hospitals listed' },
     { href: '/portals', label: 'Job Portals', icon: Globe, color: 'bg-purple-50 text-purple-700 border-purple-200', desc: '17 portals with direct links' },
     { href: '/tracker', label: 'Applications', icon: ClipboardList, color: 'bg-orange-50 text-orange-700 border-orange-200', desc: 'Track your applications' },
@@ -48,7 +47,7 @@ export default function Dashboard() {
             <Briefcase className="h-6 w-6 text-blue-600" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">{totalActive}</p>
+            <p className="text-2xl font-bold text-gray-900">{activeJobs.length}</p>
             <p className="text-sm text-gray-500">Active Jobs</p>
           </div>
         </div>
@@ -57,8 +56,8 @@ export default function Dashboard() {
             <TrendingUp className="h-6 w-6 text-green-600" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">{newThisWeek}</p>
-            <p className="text-sm text-gray-500">New This Week</p>
+            <p className="text-2xl font-bold text-gray-900">{allJobs.length}</p>
+            <p className="text-sm text-gray-500">Total Listings</p>
           </div>
         </div>
         <div className="card flex items-center gap-4">
@@ -66,7 +65,7 @@ export default function Dashboard() {
             <ClipboardList className="h-6 w-6 text-purple-600" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">{totalApplications}</p>
+            <p className="text-2xl font-bold text-gray-900">{appCount}</p>
             <p className="text-sm text-gray-500">Applications</p>
           </div>
         </div>
@@ -106,18 +105,18 @@ export default function Dashboard() {
           <Link href="/jobs" className="text-primary-600 hover:text-primary-700 text-sm font-medium">View all →</Link>
         </div>
         <div className="space-y-3">
-          {recentJobs.map((job) => (
-            <div key={job.id as number} className="card flex items-center justify-between">
+          {activeJobs.slice(0, 5).map((job) => (
+            <div key={job.id} className="card flex items-center justify-between">
               <div>
-                <h3 className="font-medium text-gray-900">{job.title as string}</h3>
-                <p className="text-sm text-gray-500">{job.hospital_name as string} • {job.location as string}</p>
+                <h3 className="font-medium text-gray-900">{job.title}</h3>
+                <p className="text-sm text-gray-500">{job.hospital_name} • {job.location}</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className={`badge ${job.type === 'govt' ? 'badge-green' : 'badge-blue'}`}>
-                  {(job.type as string).toUpperCase()}
+                  {job.type.toUpperCase()}
                 </span>
-                {Boolean(job.apply_url) && (
-                  <a href={job.apply_url as string} target="_blank" rel="noopener noreferrer" className="btn-primary text-sm">
+                {job.apply_url && (
+                  <a href={job.apply_url} target="_blank" rel="noopener noreferrer" className="btn-primary text-sm">
                     Apply
                   </a>
                 )}

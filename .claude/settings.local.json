@@ -43,7 +43,10 @@
       "Bash(echo gh not available:*)",
       "Bash(export PATH=\"/Users/ashishagrawal/.local/node/bin:$PATH\" && gh auth status 2>&1)",
       "Bash(export PATH=\"/Users/ashishagrawal/.local/node/bin:$PATH\" && gh auth login --web --git-protocol https 2>&1)",
-      "Bash(export PATH=\"/Users/ashishagrawal/.local/node/bin:$PATH\" && gh auth login -p https -h github.com --web 2>&1)"
+      "Bash(export PATH=\"/Users/ashishagrawal/.local/node/bin:$PATH\" && gh auth login -p https -h github.com --web 2>&1)",
+      "Bash(export PATH=\"/Users/ashishagrawal/.local/node/bin:$PATH\" && npm install -g vercel 2>&1)",
+      "Bash(export PATH=\"/Users/ashishagrawal/.local/node/bin:$PATH\" && vercel --version 2>&1)",
+      "Bash(export PATH=\"/Users/ashishagrawal/.local/node/bin:$PATH\" && vercel login 2>&1)"
     ]
   }
 }

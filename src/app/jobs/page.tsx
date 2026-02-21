@@ -1,50 +1,33 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Briefcase, Search, MapPin, Clock, IndianRupee, Filter, ExternalLink } from 'lucide-react'
-import { getUrgencyColor, getCountdownText, formatSalary, formatDate, getStatusLabel } from '@/lib/utils'
+import { getUrgencyColor, getCountdownText, formatSalary } from '@/lib/utils'
+import { jobs as seedJobs, Job } from '@/lib/data'
+import { getCustomJobs } from '@/lib/storage'
 import Link from 'next/link'
 
-interface Job {
-  id: number
-  title: string
-  hospital_name: string
-  location: string
-  type: string
-  salary_min: number | null
-  salary_max: number | null
-  salary_text: string | null
-  walk_in_date: string | null
-  walk_in_recurring: string | null
-  deadline: string | null
-  apply_url: string | null
-  description: string | null
-  source: string | null
-  is_active: number
-  created_at: string
-}
-
 export default function JobsPage() {
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [loading, setLoading] = useState(true)
+  const [allJobs, setAllJobs] = useState<Job[]>(seedJobs)
   const [filters, setFilters] = useState({ type: '', location: '', search: '' })
 
   useEffect(() => {
-    fetchJobs()
-  }, [filters])
+    const custom = getCustomJobs()
+    setAllJobs([...seedJobs, ...custom])
+  }, [])
 
-  async function fetchJobs() {
-    setLoading(true)
-    const params = new URLSearchParams()
-    if (filters.type) params.set('type', filters.type)
-    if (filters.location) params.set('location', filters.location)
-    if (filters.search) params.set('search', filters.search)
-
-    const res = await fetch(`/api/jobs?${params}`)
-    const data = await res.json()
-    setJobs(data)
-    setLoading(false)
-  }
+  const filteredJobs = useMemo(() => {
+    return allJobs.filter(j => {
+      if (!j.is_active) return false
+      if (filters.type && j.type !== filters.type) return false
+      if (filters.location && !j.location.toLowerCase().includes(filters.location.toLowerCase())) return false
+      if (filters.search) {
+        const s = filters.search.toLowerCase()
+        if (!j.title.toLowerCase().includes(s) && !j.hospital_name.toLowerCase().includes(s) && !(j.description || '').toLowerCase().includes(s)) return false
+      }
+      return true
+    })
+  }, [allJobs, filters])
 
   return (
     <div className="space-y-6">
@@ -54,7 +37,7 @@ export default function JobsPage() {
             <Briefcase className="h-7 w-7 text-primary-500" />
             Job Listings
           </h1>
-          <p className="text-gray-500 mt-1">{jobs.length} positions found</p>
+          <p className="text-gray-500 mt-1">{filteredJobs.length} positions found</p>
         </div>
       </div>
 
@@ -99,13 +82,11 @@ export default function JobsPage() {
       </div>
 
       {/* Job Cards */}
-      {loading ? (
-        <div className="text-center py-12 text-gray-500">Loading jobs...</div>
-      ) : jobs.length === 0 ? (
+      {filteredJobs.length === 0 ? (
         <div className="text-center py-12 text-gray-500">No jobs found matching your filters.</div>
       ) : (
         <div className="space-y-4">
-          {jobs.map((job) => {
+          {filteredJobs.map((job) => {
             const urgency = getUrgencyColor(job.walk_in_date || job.deadline, job.walk_in_recurring)
             const countdown = getCountdownText(job.walk_in_date || job.deadline, job.walk_in_recurring)
 

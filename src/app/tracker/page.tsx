@@ -3,16 +3,8 @@
 import { useState, useEffect } from 'react'
 import { ClipboardList, Plus, Edit2, Trash2, Clock, X } from 'lucide-react'
 import { getStatusLabel } from '@/lib/utils'
-
-interface Application {
-  id: number
-  hospital_name: string
-  position: string
-  applied_date: string
-  status: string
-  follow_up_date: string | null
-  notes: string | null
-}
+import { Application } from '@/lib/data'
+import { getApplications, saveApplication, updateApplication, deleteApplication } from '@/lib/storage'
 
 const statuses = ['applied', 'shortlisted', 'interview_scheduled', 'interviewed', 'offered', 'accepted', 'rejected', 'withdrawn']
 
@@ -29,20 +21,18 @@ const statusColors: Record<string, string> = {
 
 export default function TrackerPage() {
   const [applications, setApplications] = useState<Application[]>([])
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Application | null>(null)
   const [form, setForm] = useState({
     hospital_name: '', position: '', applied_date: '', status: 'applied', follow_up_date: '', notes: ''
   })
 
-  useEffect(() => { fetchApps() }, [])
+  useEffect(() => {
+    setApplications(getApplications())
+  }, [])
 
-  async function fetchApps() {
-    const res = await fetch('/api/applications')
-    const data = await res.json()
-    setApplications(data)
-    setLoading(false)
+  function refresh() {
+    setApplications(getApplications())
   }
 
   function openNew() {
@@ -61,28 +51,27 @@ export default function TrackerPage() {
     setShowModal(true)
   }
 
-  async function handleSave() {
+  function handleSave() {
     if (editing) {
-      await fetch(`/api/applications/${editing.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      })
+      updateApplication(editing.id, form)
     } else {
-      await fetch('/api/applications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+      saveApplication({
+        hospital_name: form.hospital_name,
+        position: form.position,
+        applied_date: form.applied_date,
+        status: form.status,
+        follow_up_date: form.follow_up_date || null,
+        notes: form.notes || null,
       })
     }
     setShowModal(false)
-    fetchApps()
+    refresh()
   }
 
-  async function handleDelete(id: number) {
+  function handleDelete(id: number) {
     if (!confirm('Delete this application?')) return
-    await fetch(`/api/applications/${id}`, { method: 'DELETE' })
-    fetchApps()
+    deleteApplication(id)
+    refresh()
   }
 
   function getFollowUpStatus(date: string | null): { text: string; color: string } {
@@ -108,9 +97,7 @@ export default function TrackerPage() {
         </button>
       </div>
 
-      {loading ? (
-        <div className="text-center py-12 text-gray-500">Loading...</div>
-      ) : applications.length === 0 ? (
+      {applications.length === 0 ? (
         <div className="card text-center py-12">
           <ClipboardList className="h-12 w-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">No applications tracked yet.</p>

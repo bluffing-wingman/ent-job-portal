@@ -2,23 +2,10 @@
 
 import { AlertTriangle, Clock, Calendar } from 'lucide-react'
 import { getUrgencyColor, getCountdownText } from '@/lib/utils'
+import { Job } from '@/lib/data'
 
-interface Job {
-  id: number
-  title: string
-  hospital_name: string
-  location: string
-  walk_in_date: string | null
-  walk_in_recurring: string | null
-  apply_url: string | null
-  salary_text: string | null
-  [key: string]: unknown
-}
-
-export default function UrgentAlerts({ jobs }: { jobs: Record<string, unknown>[] }) {
-  const typedJobs = jobs as unknown as Job[]
-
-  if (typedJobs.length === 0) return null
+export default function UrgentAlerts({ jobs }: { jobs: Job[] }) {
+  if (jobs.length === 0) return null
 
   return (
     <div>
@@ -27,7 +14,7 @@ export default function UrgentAlerts({ jobs }: { jobs: Record<string, unknown>[]
         <h2 className="text-xl font-bold text-gray-900">Urgent Alerts</h2>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {typedJobs.map((job) => {
+        {jobs.map((job) => {
           const urgency = getUrgencyColor(job.walk_in_date, job.walk_in_recurring)
           const countdown = getCountdownText(job.walk_in_date, job.walk_in_recurring)
 

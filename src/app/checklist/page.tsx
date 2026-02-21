@@ -1,37 +1,24 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { CheckSquare, Square, ExternalLink, RefreshCw } from 'lucide-react'
-
-interface ChecklistItem {
-  id: number
-  title: string
-  url: string | null
-  category: string | null
-  sort_order: number
-  completed: number
-}
+import { CheckSquare, Square, ExternalLink } from 'lucide-react'
+import { checklistItems } from '@/lib/data'
+import { getCompletedItems, toggleChecklistItem } from '@/lib/storage'
 
 export default function ChecklistPage() {
-  const [items, setItems] = useState<ChecklistItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [completed, setCompleted] = useState<number[]>([])
 
-  useEffect(() => { fetchItems() }, [])
+  useEffect(() => {
+    setCompleted(getCompletedItems())
+  }, [])
 
-  async function fetchItems() {
-    const res = await fetch('/api/checklist')
-    const data = await res.json()
-    setItems(data)
-    setLoading(false)
+  function toggle(id: number) {
+    const updated = toggleChecklistItem(id)
+    setCompleted([...updated])
   }
 
-  async function toggleItem(id: number) {
-    await fetch(`/api/checklist/${id}`, { method: 'PUT' })
-    fetchItems()
-  }
-
-  const completedCount = items.filter(i => i.completed).length
-  const totalCount = items.length
+  const completedCount = completed.length
+  const totalCount = checklistItems.length
   const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
   return (
@@ -62,24 +49,23 @@ export default function ChecklistPage() {
       </div>
 
       {/* Items */}
-      {loading ? (
-        <div className="text-center py-12 text-gray-500">Loading...</div>
-      ) : (
-        <div className="space-y-2">
-          {items.map((item) => (
+      <div className="space-y-2">
+        {checklistItems.map((item) => {
+          const isDone = completed.includes(item.id)
+          return (
             <div
               key={item.id}
               className={`card flex items-center gap-3 cursor-pointer transition-all ${
-                item.completed ? 'bg-green-50 border-green-200' : 'hover:bg-gray-50'
+                isDone ? 'bg-green-50 border-green-200' : 'hover:bg-gray-50'
               }`}
-              onClick={() => toggleItem(item.id)}
+              onClick={() => toggle(item.id)}
             >
-              {item.completed ? (
+              {isDone ? (
                 <CheckSquare className="h-5 w-5 text-green-500 flex-shrink-0" />
               ) : (
                 <Square className="h-5 w-5 text-gray-300 flex-shrink-0" />
               )}
-              <span className={`flex-1 ${item.completed ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+              <span className={`flex-1 ${isDone ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
                 {item.title}
               </span>
               {item.url && (
@@ -94,9 +80,9 @@ export default function ChecklistPage() {
                 </a>
               )}
             </div>
-          ))}
-        </div>
-      )}
+          )
+        })}
+      </div>
     </div>
   )
 }
