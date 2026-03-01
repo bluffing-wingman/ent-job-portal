@@ -4,10 +4,10 @@ import { getDb } from './db'
 import { sendNewJobAlert } from './email'
 
 const ENT_KEYWORDS = [
-  'ENT', 'ent', 'Otolaryngology', 'otolaryngology',
-  'Otorhinolaryngology', 'otorhinolaryngology',
-  'Senior Resident', 'senior resident',
-  'ENT Surgeon', 'ent surgeon',
+  'ENT', 'Otolaryngology', 'Otorhinolaryngology',
+  'Ear, Nose', 'Ear Nose Throat', 'Head & Neck', 'Head and Neck',
+  'ENT Surgeon', 'ENT surgeon', 'ENT department', 'ENT Department',
+  '(ENT)', 'Rhinology', 'Laryngology', 'Cochlear',
 ]
 
 interface ScraperTarget {
@@ -27,7 +27,13 @@ interface ScrapedJob {
 }
 
 function containsENTKeyword(text: string): boolean {
-  return ENT_KEYWORDS.some(kw => text.includes(kw))
+  return ENT_KEYWORDS.some(kw => {
+    // For short uppercase keywords like 'ENT', use word boundary to avoid matching 'CONTENT', 'WENT' etc.
+    if (kw === kw.toUpperCase() && kw.length <= 4) {
+      return new RegExp(`\\b${kw}\\b`).test(text)
+    }
+    return text.toLowerCase().includes(kw.toLowerCase())
+  })
 }
 
 const scraperTargets: ScraperTarget[] = [
