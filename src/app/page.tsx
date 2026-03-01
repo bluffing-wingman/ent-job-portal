@@ -62,7 +62,14 @@ export default function Dashboard() {
     setLoading(false)
   }, [])
 
+  const AUTO_REFRESH_MS = 4 * 60 * 60 * 1000 // 4 hours
+
   useEffect(() => { fetchData(false) }, [fetchData])
+
+  useEffect(() => {
+    const interval = setInterval(() => fetchData(true), AUTO_REFRESH_MS)
+    return () => clearInterval(interval)
+  }, [fetchData, AUTO_REFRESH_MS])
 
   useEffect(() => {
     if (!lastFetched) return

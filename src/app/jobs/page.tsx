@@ -69,10 +69,18 @@ export default function JobsPage() {
     setLoading(false)
   }, [filters])
 
+  const AUTO_REFRESH_MS = 4 * 60 * 60 * 1000 // 4 hours
+
   // Initial load
   useEffect(() => {
     fetchJobs(false)
   }, [fetchJobs])
+
+  // Auto-refresh every 4 hours
+  useEffect(() => {
+    const interval = setInterval(() => fetchJobs(true), AUTO_REFRESH_MS)
+    return () => clearInterval(interval)
+  }, [fetchJobs, AUTO_REFRESH_MS])
 
   // Keep "time ago" text ticking
   useEffect(() => {
