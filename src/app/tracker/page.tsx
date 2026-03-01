@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { ClipboardList, Plus, Edit2, Trash2, Clock, X } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { ClipboardList, Plus, Edit2, Trash2, Clock, X, Search } from 'lucide-react'
 import { getStatusLabel } from '@/lib/utils'
 
 interface Application {
@@ -29,6 +29,8 @@ const statusColors: Record<string, string> = {
 
 export default function TrackerPage() {
   const [applications, setApplications] = useState<Application[]>([])
+  const [search, setSearch] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Application | null>(null)
   const [form, setForm] = useState({
@@ -42,6 +44,14 @@ export default function TrackerPage() {
   function fetchApplications() {
     fetch('/api/applications').then(r => r.json()).then(setApplications).catch(() => setApplications([]))
   }
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return applications.filter(a =>
+      (!q || a.hospital_name.toLowerCase().includes(q) || a.position.toLowerCase().includes(q) || a.notes?.toLowerCase().includes(q)) &&
+      (!filterStatus || a.status === filterStatus)
+    )
+  }, [applications, search, filterStatus])
 
   function openNew() {
     setEditing(null)
@@ -106,12 +116,31 @@ export default function TrackerPage() {
             <ClipboardList className="h-7 w-7 text-primary-500" />
             Application Tracker
           </h1>
-          <p className="text-gray-500 mt-1">{applications.length} applications tracked</p>
+          <p className="text-gray-500 mt-1">{filtered.length} of {applications.length} applications</p>
         </div>
         <button onClick={openNew} className="btn-primary flex items-center gap-2">
           <Plus className="h-4 w-4" /> Add Application
         </button>
       </div>
+
+      {applications.length > 0 && (
+        <div className="flex gap-4">
+          <div className="relative flex-1">
+            <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by hospital, position, or notes..."
+              className="input-field pl-10"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <select className="select-field w-48" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+            <option value="">All Statuses</option>
+            {statuses.map(s => <option key={s} value={s}>{getStatusLabel(s)}</option>)}
+          </select>
+        </div>
+      )}
 
       {applications.length === 0 ? (
         <div className="card text-center py-12">
@@ -119,6 +148,8 @@ export default function TrackerPage() {
           <p className="text-gray-500">No applications tracked yet.</p>
           <button onClick={openNew} className="btn-primary mt-4">Add your first application</button>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="card text-center py-12 text-gray-500">No applications match your search.</div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -133,7 +164,7 @@ export default function TrackerPage() {
               </tr>
             </thead>
             <tbody>
-              {applications.map((app) => {
+              {filtered.map((app) => {
                 const followUp = getFollowUpStatus(app.follow_up_date)
                 return (
                   <tr key={app.id} className="border-b border-gray-100 hover:bg-gray-50">
