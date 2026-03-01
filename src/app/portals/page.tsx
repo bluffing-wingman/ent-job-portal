@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Globe, ExternalLink, Search, CheckCircle2, Circle } from 'lucide-react'
 
 interface Portal {
@@ -21,12 +21,22 @@ const categoryLabels: Record<string, { label: string; color: string }> = {
 
 export default function PortalsPage() {
   const [portals, setPortals] = useState<Portal[]>([])
+  const [search, setSearch] = useState('')
+  const [filterCategory, setFilterCategory] = useState('')
 
   useEffect(() => {
     fetch('/api/portals').then(r => r.json()).then(setPortals).catch(() => setPortals([]))
   }, [])
 
-  const grouped = portals.reduce((acc, p) => {
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return portals.filter(p =>
+      (!q || p.name.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q)) &&
+      (!filterCategory || p.category === filterCategory)
+    )
+  }, [portals, search, filterCategory])
+
+  const grouped = filtered.reduce((acc, p) => {
     if (!acc[p.category]) acc[p.category] = []
     acc[p.category].push(p)
     return acc
@@ -41,8 +51,33 @@ export default function PortalsPage() {
           <Globe className="h-7 w-7 text-primary-500" />
           Job Portals
         </h1>
-        <p className="text-gray-500 mt-1">{portals.length} portals with pre-configured ENT search links</p>
+        <p className="text-gray-500 mt-1">{filtered.length} of {portals.length} portals with pre-configured ENT search links</p>
       </div>
+
+      <div className="card">
+        <div className="flex gap-4">
+          <div className="relative flex-1">
+            <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search portals..."
+              className="input-field pl-10"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <select className="select-field w-48" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
+            <option value="">All Categories</option>
+            <option value="general">General</option>
+            <option value="medical">Medical</option>
+            <option value="government">Government</option>
+          </select>
+        </div>
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="text-center py-12 text-gray-500">No portals match your search.</div>
+      )}
 
       {categoryOrder.map((cat) => {
         const group = grouped[cat]

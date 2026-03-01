@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Building2, ExternalLink, Globe, Stethoscope } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Building2, ExternalLink, Globe, Stethoscope, Search, Filter } from 'lucide-react'
 
 interface Hospital {
   id: number
@@ -25,12 +25,24 @@ const tierLabels: Record<string, { label: string; color: string }> = {
 
 export default function HospitalsPage() {
   const [hospitals, setHospitals] = useState<Hospital[]>([])
+  const [search, setSearch] = useState('')
+  const [filterTier, setFilterTier] = useState('')
+  const [filterType, setFilterType] = useState('')
 
   useEffect(() => {
     fetch('/api/hospitals').then(r => r.json()).then(setHospitals).catch(() => setHospitals([]))
   }, [])
 
-  const grouped = hospitals.reduce((acc, h) => {
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return hospitals.filter(h =>
+      (!q || h.name.toLowerCase().includes(q) || h.location.toLowerCase().includes(q) || h.ent_dept_info?.toLowerCase().includes(q)) &&
+      (!filterTier || h.tier === filterTier) &&
+      (!filterType || h.type === filterType)
+    )
+  }, [hospitals, search, filterTier, filterType])
+
+  const grouped = filtered.reduce((acc, h) => {
     if (!acc[h.tier]) acc[h.tier] = []
     acc[h.tier].push(h)
     return acc
@@ -45,8 +57,42 @@ export default function HospitalsPage() {
           <Building2 className="h-7 w-7 text-primary-500" />
           Hospital Directory
         </h1>
-        <p className="text-gray-500 mt-1">{hospitals.length} hospitals in Delhi-NCR</p>
+        <p className="text-gray-500 mt-1">{filtered.length} of {hospitals.length} hospitals in Delhi-NCR</p>
       </div>
+
+      <div className="card">
+        <div className="flex items-center gap-2 mb-4"><Filter className="h-4 w-4 text-gray-500" /><span className="font-medium text-gray-700">Search & Filter</span></div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="relative sm:col-span-1">
+            <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search hospitals..."
+              className="input-field pl-10"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <select className="select-field" value={filterTier} onChange={e => setFilterTier(e.target.value)}>
+            <option value="">All Tiers</option>
+            <option value="tier1">Tier 1 — Corporate</option>
+            <option value="tier2">Tier 2 — Multispecialty</option>
+            <option value="govt">Government</option>
+            <option value="clinic">ENT Clinics</option>
+            <option value="college">Medical Colleges</option>
+            <option value="startup">Startups / Chains</option>
+          </select>
+          <select className="select-field" value={filterType} onChange={e => setFilterType(e.target.value)}>
+            <option value="">All Types</option>
+            <option value="govt">Government</option>
+            <option value="private">Private</option>
+          </select>
+        </div>
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="text-center py-12 text-gray-500">No hospitals match your search.</div>
+      )}
 
       {tierOrder.map((tier) => {
         const group = grouped[tier]
