@@ -2,23 +2,34 @@
 
 import { useState, useEffect } from 'react'
 import { CheckSquare, Square, ExternalLink } from 'lucide-react'
-import { checklistItems } from '@/lib/data'
-import { getCompletedItems, toggleChecklistItem } from '@/lib/storage'
+
+interface ChecklistItem {
+  id: number
+  title: string
+  url: string | null
+  category: string
+  sort_order: number
+  completed: number
+}
 
 export default function ChecklistPage() {
-  const [completed, setCompleted] = useState<number[]>([])
+  const [items, setItems] = useState<ChecklistItem[]>([])
 
   useEffect(() => {
-    setCompleted(getCompletedItems())
+    fetchItems()
   }, [])
 
-  function toggle(id: number) {
-    const updated = toggleChecklistItem(id)
-    setCompleted([...updated])
+  function fetchItems() {
+    fetch('/api/checklist').then(r => r.json()).then(setItems).catch(() => setItems([]))
   }
 
-  const completedCount = completed.length
-  const totalCount = checklistItems.length
+  async function toggle(id: number) {
+    await fetch(`/api/checklist/${id}`, { method: 'PUT' })
+    fetchItems()
+  }
+
+  const completedCount = items.filter(i => i.completed).length
+  const totalCount = items.length
   const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
   return (
@@ -50,8 +61,8 @@ export default function ChecklistPage() {
 
       {/* Items */}
       <div className="space-y-2">
-        {checklistItems.map((item) => {
-          const isDone = completed.includes(item.id)
+        {items.map((item) => {
+          const isDone = Boolean(item.completed)
           return (
             <div
               key={item.id}

@@ -1,17 +1,25 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
+import { jobs, hospitals, portals, checklistItems } from './data';
 
-const DB_PATH = process.env.DATABASE_PATH || './data/portal.db';
+// On Vercel, only /tmp is writable. Locally, use ./data/
+const isVercel = !!process.env.VERCEL;
+const DB_PATH = isVercel ? '/tmp/portal.db' : (process.env.DATABASE_PATH || './data/portal.db');
 
 let db: Database.Database | null = null;
 
 export function getDb(): Database.Database {
   if (!db) {
     const dbPath = path.resolve(DB_PATH);
+    const dir = path.dirname(dbPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
     db = new Database(dbPath);
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
     initializeSchema(db);
+    seedIfEmpty(db);
   }
   return db;
 }
@@ -42,7 +50,7 @@ function initializeSchema(db: Database.Database) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
       location TEXT NOT NULL DEFAULT 'Gurugram',
-      tier TEXT NOT NULL CHECK(tier IN ('tier1', 'tier2', 'govt', 'startup')),
+      tier TEXT NOT NULL CHECK(tier IN ('tier1', 'tier2', 'govt', 'startup', 'clinic', 'college')),
       type TEXT NOT NULL CHECK(type IN ('private', 'govt')),
       career_url TEXT,
       website_url TEXT,
@@ -111,6 +119,47 @@ function initializeSchema(db: Database.Database) {
       status TEXT NOT NULL DEFAULT 'sent'
     );
   `);
+}
+
+function seedIfEmpty(db: Database.Database) {
+  const count = (db.prepare('SELECT COUNT(*) as c FROM hospitals').get() as { c: number }).c;
+  if (count > 0) return; // Already seeded
+
+  // Seed hospitals
+  const insertHospital = db.prepare(`INSERT INTO hospitals (name, location, tier, type, career_url, website_url, ent_dept_info) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+  const hospTx = db.transaction(() => {
+    for (const h of hospitals) {
+      insertHospital.run(h.name, h.location, h.tier, h.type, h.career_url, h.website_url, h.ent_dept_info);
+    }
+  });
+  hospTx();
+
+  // Seed jobs
+  const insertJob = db.prepare(`INSERT INTO jobs (title, hospital_name, location, type, salary_min, salary_max, salary_text, walk_in_date, walk_in_recurring, deadline, apply_url, description, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const jobTx = db.transaction(() => {
+    for (const j of jobs) {
+      insertJob.run(j.title, j.hospital_name, j.location, j.type, j.salary_min, j.salary_max, j.salary_text, j.walk_in_date, j.walk_in_recurring, j.deadline, j.apply_url, j.description, j.source);
+    }
+  });
+  jobTx();
+
+  // Seed portals
+  const insertPortal = db.prepare(`INSERT INTO portals (name, category, url, search_url, description, is_registered) VALUES (?, ?, ?, ?, ?, ?)`);
+  const portalTx = db.transaction(() => {
+    for (const p of portals) {
+      insertPortal.run(p.name, p.category, p.url, p.search_url, p.description, p.is_registered ? 1 : 0);
+    }
+  });
+  portalTx();
+
+  // Seed checklist
+  const insertChecklist = db.prepare(`INSERT INTO checklist_items (title, url, category, sort_order) VALUES (?, ?, ?, ?)`);
+  const checkTx = db.transaction(() => {
+    for (const c of checklistItems) {
+      insertChecklist.run(c.title, c.url, c.category, c.sort_order);
+    }
+  });
+  checkTx();
 }
 
 export default getDb;

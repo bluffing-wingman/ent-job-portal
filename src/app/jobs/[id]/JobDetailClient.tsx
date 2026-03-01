@@ -3,16 +3,18 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, MapPin, IndianRupee, Calendar, Clock, ExternalLink, Building2 } from 'lucide-react'
-import { jobs as seedJobs, Job } from '@/lib/data'
-import { getCustomJobs } from '@/lib/storage'
+interface Job {
+  id: number; title: string; hospital_name: string; location: string; type: string
+  salary_min: number | null; salary_max: number | null; salary_text: string | null
+  walk_in_date: string | null; walk_in_recurring: string | null; deadline: string | null
+  apply_url: string | null; description: string | null; source: string | null
+}
 
 export default function JobDetailClient({ id }: { id: string }) {
   const [job, setJob] = useState<Job | null>(null)
 
   useEffect(() => {
-    const numId = Number(id)
-    const allJobs = [...seedJobs, ...getCustomJobs()]
-    setJob(allJobs.find(j => j.id === numId) || null)
+    fetch(`/api/jobs/${id}`).then(r => r.json()).then(setJob).catch(() => setJob(null))
   }, [id])
 
   if (!job) {

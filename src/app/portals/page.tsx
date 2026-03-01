@@ -1,7 +1,17 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Globe, ExternalLink, Search, CheckCircle2, Circle } from 'lucide-react'
-import { portals } from '@/lib/data'
+
+interface Portal {
+  id: number
+  name: string
+  category: string
+  url: string
+  search_url: string | null
+  is_registered: number
+  description: string | null
+}
 
 const categoryLabels: Record<string, { label: string; color: string }> = {
   general: { label: 'General Job Portals', color: 'text-blue-700' },
@@ -10,11 +20,17 @@ const categoryLabels: Record<string, { label: string; color: string }> = {
 }
 
 export default function PortalsPage() {
+  const [portals, setPortals] = useState<Portal[]>([])
+
+  useEffect(() => {
+    fetch('/api/portals').then(r => r.json()).then(setPortals).catch(() => setPortals([]))
+  }, [])
+
   const grouped = portals.reduce((acc, p) => {
     if (!acc[p.category]) acc[p.category] = []
     acc[p.category].push(p)
     return acc
-  }, {} as Record<string, typeof portals>)
+  }, {} as Record<string, Portal[]>)
 
   const categoryOrder = ['general', 'medical', 'government'] as const
 

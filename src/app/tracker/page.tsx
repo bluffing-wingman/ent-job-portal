@@ -3,8 +3,16 @@
 import { useState, useEffect } from 'react'
 import { ClipboardList, Plus, Edit2, Trash2, Clock, X } from 'lucide-react'
 import { getStatusLabel } from '@/lib/utils'
-import { Application } from '@/lib/data'
-import { getApplications, saveApplication, updateApplication, deleteApplication } from '@/lib/storage'
+
+interface Application {
+  id: number
+  hospital_name: string
+  position: string
+  applied_date: string
+  status: string
+  follow_up_date: string | null
+  notes: string | null
+}
 
 const statuses = ['applied', 'shortlisted', 'interview_scheduled', 'interviewed', 'offered', 'accepted', 'rejected', 'withdrawn']
 
@@ -28,11 +36,11 @@ export default function TrackerPage() {
   })
 
   useEffect(() => {
-    setApplications(getApplications())
+    fetchApplications()
   }, [])
 
-  function refresh() {
-    setApplications(getApplications())
+  function fetchApplications() {
+    fetch('/api/applications').then(r => r.json()).then(setApplications).catch(() => setApplications([]))
   }
 
   function openNew() {
@@ -51,27 +59,35 @@ export default function TrackerPage() {
     setShowModal(true)
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (editing) {
-      updateApplication(editing.id, form)
+      await fetch(`/api/applications/${editing.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
     } else {
-      saveApplication({
-        hospital_name: form.hospital_name,
-        position: form.position,
-        applied_date: form.applied_date,
-        status: form.status,
-        follow_up_date: form.follow_up_date || null,
-        notes: form.notes || null,
+      await fetch('/api/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hospital_name: form.hospital_name,
+          position: form.position,
+          applied_date: form.applied_date,
+          status: form.status,
+          follow_up_date: form.follow_up_date || null,
+          notes: form.notes || null,
+        }),
       })
     }
     setShowModal(false)
-    refresh()
+    fetchApplications()
   }
 
-  function handleDelete(id: number) {
+  async function handleDelete(id: number) {
     if (!confirm('Delete this application?')) return
-    deleteApplication(id)
-    refresh()
+    await fetch(`/api/applications/${id}`, { method: 'DELETE' })
+    fetchApplications()
   }
 
   function getFollowUpStatus(date: string | null): { text: string; color: string } {

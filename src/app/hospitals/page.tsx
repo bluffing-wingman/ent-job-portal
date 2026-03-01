@@ -1,23 +1,42 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Building2, ExternalLink, Globe, Stethoscope } from 'lucide-react'
-import { hospitals } from '@/lib/data'
+
+interface Hospital {
+  id: number
+  name: string
+  location: string
+  tier: string
+  type: string
+  career_url: string | null
+  website_url: string | null
+  ent_dept_info: string | null
+}
 
 const tierLabels: Record<string, { label: string; color: string }> = {
   tier1: { label: 'Tier 1 — Corporate Hospitals', color: 'text-blue-700' },
   tier2: { label: 'Tier 2 — Multispecialty', color: 'text-teal-700' },
   govt: { label: 'Government / Public', color: 'text-green-700' },
   startup: { label: 'Startups / Chains', color: 'text-purple-700' },
+  clinic: { label: 'ENT Clinics & Specialty Centers', color: 'text-rose-700' },
+  college: { label: 'Medical Colleges with ENT Departments', color: 'text-amber-700' },
 }
 
 export default function HospitalsPage() {
+  const [hospitals, setHospitals] = useState<Hospital[]>([])
+
+  useEffect(() => {
+    fetch('/api/hospitals').then(r => r.json()).then(setHospitals).catch(() => setHospitals([]))
+  }, [])
+
   const grouped = hospitals.reduce((acc, h) => {
     if (!acc[h.tier]) acc[h.tier] = []
     acc[h.tier].push(h)
     return acc
-  }, {} as Record<string, typeof hospitals>)
+  }, {} as Record<string, Hospital[]>)
 
-  const tierOrder = ['tier1', 'tier2', 'govt', 'startup'] as const
+  const tierOrder = ['tier1', 'tier2', 'govt', 'clinic', 'college', 'startup'] as const
 
   return (
     <div className="space-y-8">

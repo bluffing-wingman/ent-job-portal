@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Settings, Plus, Loader2 } from 'lucide-react'
-import { saveCustomJob } from '@/lib/storage'
+import { Settings, Plus, Loader2, Play, Mail, AlertCircle, CheckCircle } from 'lucide-react'
 
 export default function AdminPage() {
   const [form, setForm] = useState({
@@ -13,30 +12,83 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
-  function handleSubmit(e: React.FormEvent) {
+  const [scraperRunning, setScraperRunning] = useState(false)
+  const [scraperResult, setScraperResult] = useState<string | null>(null)
+
+  const [emailSending, setEmailSending] = useState(false)
+  const [emailResult, setEmailResult] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     setMessage('')
 
-    saveCustomJob({
-      title: form.title,
-      hospital_name: form.hospital_name,
-      location: form.location,
-      type: form.type,
-      salary_min: null,
-      salary_max: null,
-      salary_text: form.salary_text || null,
-      walk_in_date: form.walk_in_date || null,
-      walk_in_recurring: form.walk_in_recurring || null,
-      deadline: form.deadline || null,
-      apply_url: form.apply_url || null,
-      description: form.description || null,
-      source: form.source || null,
-    })
+    try {
+      const res = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: form.title,
+          hospital_name: form.hospital_name,
+          location: form.location,
+          type: form.type,
+          salary_min: null,
+          salary_max: null,
+          salary_text: form.salary_text || null,
+          walk_in_date: form.walk_in_date || null,
+          walk_in_recurring: form.walk_in_recurring || null,
+          deadline: form.deadline || null,
+          apply_url: form.apply_url || null,
+          description: form.description || null,
+          source: form.source || null,
+        }),
+      })
 
-    setMessage('Job added successfully! View it on the Jobs page.')
-    setForm({ title: '', hospital_name: '', location: 'Gurugram', type: 'private', salary_text: '', walk_in_date: '', walk_in_recurring: '', deadline: '', apply_url: '', description: '', source: '' })
+      if (res.ok) {
+        setMessage('Job added successfully! View it on the Jobs page.')
+        setForm({ title: '', hospital_name: '', location: 'Gurugram', type: 'private', salary_text: '', walk_in_date: '', walk_in_recurring: '', deadline: '', apply_url: '', description: '', source: '' })
+      } else {
+        setMessage('Failed to add job. Please try again.')
+      }
+    } catch {
+      setMessage('Failed to add job. Please try again.')
+    }
+
     setSaving(false)
+  }
+
+  async function runScraper() {
+    setScraperRunning(true)
+    setScraperResult(null)
+    try {
+      const res = await fetch('/api/scraper/run', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setScraperResult(`Scraper completed. Found ${data.totalFound ?? 0} jobs, ${data.newJobs ?? 0} new.`)
+      } else {
+        setScraperResult(`Scraper error: ${data.error || 'Unknown error'}`)
+      }
+    } catch {
+      setScraperResult('Failed to run scraper.')
+    }
+    setScraperRunning(false)
+  }
+
+  async function sendTestEmail() {
+    setEmailSending(true)
+    setEmailResult(null)
+    try {
+      const res = await fetch('/api/notifications/test', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setEmailResult('Test email sent successfully!')
+      } else {
+        setEmailResult(`Email failed: ${data.error || 'Check GMAIL_USER and GMAIL_APP_PASSWORD env vars'}`)
+      }
+    } catch {
+      setEmailResult('Failed to send test email.')
+    }
+    setEmailSending(false)
   }
 
   return (
@@ -46,13 +98,14 @@ export default function AdminPage() {
           <Settings className="h-7 w-7 text-primary-500" />
           Admin Panel
         </h1>
-        <p className="text-gray-500 mt-1">Add new job listings</p>
+        <p className="text-gray-500 mt-1">Manage jobs, scraper, and notifications</p>
       </div>
 
+      {/* Add Job Form */}
       <form onSubmit={handleSubmit} className="card space-y-4 max-w-2xl">
         <h2 className="font-semibold text-lg">Add New Job</h2>
         {message && (
-          <div className="p-3 rounded-lg text-sm bg-green-50 text-green-700">{message}</div>
+          <div className={`p-3 rounded-lg text-sm ${message.includes('success') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{message}</div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -113,6 +166,38 @@ export default function AdminPage() {
           {saving ? 'Adding...' : 'Add Job'}
         </button>
       </form>
+
+      {/* Scraper Control */}
+      <div className="card max-w-2xl">
+        <h2 className="font-semibold text-lg mb-4">Scraper</h2>
+        <p className="text-sm text-gray-500 mb-4">Run the web scraper to check government job sites for new ENT listings.</p>
+        <button onClick={runScraper} disabled={scraperRunning} className="btn-primary flex items-center gap-2">
+          {scraperRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+          {scraperRunning ? 'Running...' : 'Run Scraper'}
+        </button>
+        {scraperResult && (
+          <div className={`mt-3 p-3 rounded-lg text-sm flex items-center gap-2 ${scraperResult.includes('error') || scraperResult.includes('Failed') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+            {scraperResult.includes('error') || scraperResult.includes('Failed') ? <AlertCircle className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+            {scraperResult}
+          </div>
+        )}
+      </div>
+
+      {/* Email Notifications */}
+      <div className="card max-w-2xl">
+        <h2 className="font-semibold text-lg mb-4">Email Notifications</h2>
+        <p className="text-sm text-gray-500 mb-4">Send a test email to verify notification setup. Requires GMAIL_USER and GMAIL_APP_PASSWORD environment variables.</p>
+        <button onClick={sendTestEmail} disabled={emailSending} className="btn-primary flex items-center gap-2">
+          {emailSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+          {emailSending ? 'Sending...' : 'Send Test Email'}
+        </button>
+        {emailResult && (
+          <div className={`mt-3 p-3 rounded-lg text-sm flex items-center gap-2 ${emailResult.includes('success') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+            {emailResult.includes('success') ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+            {emailResult}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
