@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Briefcase, Search, MapPin, Clock, IndianRupee, Filter, ExternalLink, RefreshCw, Plus, Minus, X } from 'lucide-react'
+import {
+  Briefcase, Search, MapPin, Clock, IndianRupee,
+  Filter, ExternalLink, RefreshCw, Plus, Minus, X, Zap
+} from 'lucide-react'
 import { getUrgencyColor, getCountdownText, formatSalary } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -57,7 +60,7 @@ export default function JobsPage() {
       if (added.length > 0 || removed.length > 0) {
         setDiff({ added, removed })
       } else {
-        setDiff({ added: [], removed: [] }) // no changes but still show "no changes"
+        setDiff({ added: [], removed: [] })
       }
       setRefreshing(false)
     }
@@ -69,20 +72,15 @@ export default function JobsPage() {
     setLoading(false)
   }, [filters])
 
-  const AUTO_REFRESH_MS = 4 * 60 * 60 * 1000 // 4 hours
+  const AUTO_REFRESH_MS = 4 * 60 * 60 * 1000
 
-  // Initial load
-  useEffect(() => {
-    fetchJobs(false)
-  }, [fetchJobs])
+  useEffect(() => { fetchJobs(false) }, [fetchJobs])
 
-  // Auto-refresh every 4 hours
   useEffect(() => {
     const interval = setInterval(() => fetchJobs(true), AUTO_REFRESH_MS)
     return () => clearInterval(interval)
   }, [fetchJobs, AUTO_REFRESH_MS])
 
-  // Keep "time ago" text ticking
   useEffect(() => {
     if (!lastFetched) return
     const interval = setInterval(() => setTimeAgoText(timeAgo(lastFetched)), 15000)
@@ -90,29 +88,40 @@ export default function JobsPage() {
   }, [lastFetched])
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Briefcase className="h-7 w-7 text-primary-500" /> Job Listings
-          </h1>
-          <p className="text-gray-500 mt-1">{jobs.length} positions found</p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <button
-            onClick={() => fetchJobs(true)}
-            disabled={refreshing}
-            className="btn-secondary flex items-center gap-2 text-sm"
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? 'Checking...' : 'Refresh'}
-          </button>
-          {lastFetched && (
-            <span className="text-xs text-gray-400">Updated {timeAgoText}</span>
-          )}
+    <div className="space-y-6 animate-fade-in">
+
+      {/* ── Header ── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-600 via-sky-600 to-primary-700 p-8 text-white shadow-lg">
+        <div className="absolute inset-0 dot-pattern" />
+        <div className="relative flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-white/20 rounded-xl">
+                <Briefcase className="h-6 w-6 text-white" />
+              </div>
+              <h1 className="text-3xl font-extrabold">Job Listings</h1>
+            </div>
+            <p className="text-sky-100 text-base">
+              {loading ? 'Loading positions…' : `${jobs.length} ENT positions found in Delhi-NCR`}
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <button
+              onClick={() => fetchJobs(true)}
+              disabled={refreshing}
+              className="flex items-center gap-2 text-sm bg-white/20 hover:bg-white/30 text-white px-3.5 py-2 rounded-xl transition-all active:scale-95 font-medium"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Checking…' : 'Refresh'}
+            </button>
+            {lastFetched && (
+              <span className="text-xs text-sky-300">Updated {timeAgoText}</span>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* ── Diff Banner ── */}
       {diff !== null && (
         <div className={`rounded-xl border px-4 py-3 flex items-start gap-3 ${
           diff.added.length === 0 && diff.removed.length === 0
@@ -145,20 +154,46 @@ export default function JobsPage() {
         </div>
       )}
 
-      <div className="card">
-        <div className="flex items-center gap-2 mb-4"><Filter className="h-4 w-4 text-gray-500" /><span className="font-medium text-gray-700">Filters</span></div>
+      {/* ── Filters ── */}
+      <div className="card-flat">
+        <div className="flex items-center gap-2 mb-4">
+          <Filter className="h-4 w-4 text-gray-500" />
+          <span className="font-semibold text-gray-700">Filters</span>
+          {(filters.search || filters.type || filters.location) && (
+            <button
+              onClick={() => setFilters({ type: '', location: '', search: '' })}
+              className="ml-auto text-xs text-primary-600 hover:text-primary-700 font-medium"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="relative">
             <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-            <input type="text" placeholder="Search jobs..." className="input-field pl-10" value={filters.search} onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))} />
+            <input
+              type="text"
+              placeholder="Search jobs, hospitals…"
+              className="input-field pl-10"
+              value={filters.search}
+              onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+            />
           </div>
-          <select className="select-field" value={filters.type} onChange={(e) => setFilters(f => ({ ...f, type: e.target.value }))}>
+          <select
+            className="select-field"
+            value={filters.type}
+            onChange={e => setFilters(f => ({ ...f, type: e.target.value }))}
+          >
             <option value="">All Types</option>
             <option value="govt">Government</option>
             <option value="private">Private</option>
             <option value="startup">Startup</option>
           </select>
-          <select className="select-field" value={filters.location} onChange={(e) => setFilters(f => ({ ...f, location: e.target.value }))}>
+          <select
+            className="select-field"
+            value={filters.location}
+            onChange={e => setFilters(f => ({ ...f, location: e.target.value }))}
+          >
             <option value="">All Locations</option>
             <option value="Gurugram">Gurugram</option>
             <option value="Delhi">Delhi</option>
@@ -166,44 +201,133 @@ export default function JobsPage() {
         </div>
       </div>
 
+      {/* ── Job Cards ── */}
       {loading ? (
-        <div className="text-center py-12 text-gray-500">Loading jobs...</div>
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="card-flat">
+              <div className="flex gap-4">
+                <div className="skeleton h-12 w-12 rounded-2xl" />
+                <div className="flex-1 space-y-2">
+                  <div className="skeleton h-5 w-48 rounded-lg" />
+                  <div className="skeleton h-4 w-64 rounded-lg" />
+                  <div className="skeleton h-4 w-32 rounded-lg" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : jobs.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">No jobs found matching your filters.</div>
+        <div className="text-center py-16 text-gray-500">
+          <Briefcase className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+          <p className="font-medium">No jobs found matching your filters.</p>
+          <p className="text-sm mt-1">Try removing some filters or check back later.</p>
+        </div>
       ) : (
         <div className="space-y-4">
           {jobs.map((job) => {
             const urgency = getUrgencyColor(job.walk_in_date || job.deadline, job.walk_in_recurring)
             const countdown = getCountdownText(job.walk_in_date || job.deadline, job.walk_in_recurring)
             const isNew = diff?.added.some(j => j.id === job.id)
+            const salaryText = formatSalary(job.salary_min, job.salary_max, job.salary_text)
+
+            const urgencyBadge =
+              urgency === 'red'
+                ? 'badge-red'
+                : urgency === 'yellow'
+                ? 'badge-yellow'
+                : urgency === 'gray'
+                ? 'bg-gray-100 text-gray-600'
+                : 'badge-green'
+
+            const typeBadge =
+              job.type === 'govt'
+                ? 'badge-green'
+                : job.type === 'startup'
+                ? 'badge-purple'
+                : 'badge-blue'
+
+            const typeGradient =
+              job.type === 'govt'
+                ? 'from-emerald-400 to-teal-600'
+                : job.type === 'startup'
+                ? 'from-violet-400 to-purple-600'
+                : 'from-sky-400 to-blue-600'
+
             return (
-              <div key={job.id} className={`card hover:shadow-lg transition-all ${isNew ? 'ring-2 ring-emerald-400' : ''}`}>
+              <div
+                key={job.id}
+                className={`card hover:shadow-card-hover transition-all duration-300 ${
+                  isNew ? 'ring-2 ring-emerald-400 bg-emerald-50/20' : ''
+                }`}
+              >
                 {isNew && (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full mb-2">
-                    <Plus className="h-3 w-3" /> New
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full mb-3">
+                    <Plus className="h-3 w-3" /> New Listing
                   </span>
                 )}
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-start gap-2 flex-wrap">
-                      <Link href={`/jobs/${job.id}`} className="text-lg font-semibold text-gray-900 hover:text-primary-600">{job.title}</Link>
-                      <span className={`badge ${job.type === 'govt' ? 'badge-green' : job.type === 'startup' ? 'badge-purple' : 'badge-blue'}`}>{job.type.toUpperCase()}</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-500">
-                      <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{job.hospital_name} • {job.location}</span>
-                      {(job.salary_text || job.salary_min) && <span className="flex items-center gap-1"><IndianRupee className="h-3.5 w-3.5" />{formatSalary(job.salary_min, job.salary_max, job.salary_text)}</span>}
-                    </div>
-                    {job.description && <p className="text-sm text-gray-600 mt-2 line-clamp-2">{job.description}</p>}
+
+                <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                  {/* Icon */}
+                  <div className={`stat-icon flex-shrink-0 bg-gradient-to-br ${typeGradient} shadow-sm self-start`}>
+                    <Briefcase className="h-5 w-5 text-white" />
                   </div>
-                  <div className="flex flex-col items-end gap-2 min-w-fit">
+
+                  {/* Main content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start gap-2 flex-wrap mb-1">
+                      <Link
+                        href={`/jobs/${job.id}`}
+                        className="text-lg font-bold text-gray-900 hover:text-primary-600 transition-colors"
+                      >
+                        {job.title}
+                      </Link>
+                      <span className={`badge ${typeBadge}`}>{job.type.toUpperCase()}</span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5 text-gray-400" />
+                        {job.hospital_name} · {job.location}
+                      </span>
+                      {salaryText && (
+                        <span className="flex items-center gap-1 font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+                          <IndianRupee className="h-3 w-3" />
+                          {salaryText}
+                        </span>
+                      )}
+                    </div>
+
+                    {job.description && (
+                      <p className="text-sm text-gray-500 mt-2 line-clamp-2 leading-relaxed">
+                        {job.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Right column: urgency + actions */}
+                  <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 flex-shrink-0">
                     {(job.walk_in_date || job.walk_in_recurring || job.deadline) && (
-                      <span className={`badge ${urgency === 'red' ? 'badge-red' : urgency === 'yellow' ? 'badge-yellow' : urgency === 'gray' ? 'bg-gray-100 text-gray-600' : 'badge-green'}`}>
-                        <Clock className="h-3 w-3 mr-1" />{countdown}
+                      <span className={`badge ${urgencyBadge} text-xs`}>
+                        {urgency === 'red' && <Zap className="h-3 w-3 mr-1" />}
+                        <Clock className="h-3 w-3 mr-1" />
+                        {countdown}
                       </span>
                     )}
                     <div className="flex gap-2">
-                      {job.apply_url && <a href={job.apply_url} target="_blank" rel="noopener noreferrer" className="btn-primary text-sm flex items-center gap-1">Apply <ExternalLink className="h-3 w-3" /></a>}
-                      <Link href={`/jobs/${job.id}`} className="btn-secondary text-sm">Details</Link>
+                      {job.apply_url && (
+                        <a
+                          href={job.apply_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-primary text-sm flex items-center gap-1 py-1.5"
+                        >
+                          Apply <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                      <Link href={`/jobs/${job.id}`} className="btn-secondary text-sm py-1.5">
+                        Details
+                      </Link>
                     </div>
                   </div>
                 </div>
