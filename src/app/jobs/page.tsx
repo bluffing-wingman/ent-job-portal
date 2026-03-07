@@ -30,11 +30,42 @@ function timeAgo(date: Date): string {
   return `${hrs}h ago`
 }
 
+type CityFilter = '' | 'Gurugram' | 'Delhi'
+
+const cityTabs: { id: CityFilter; label: string; emoji: string; activeClass: string; countClass: string; cardBadge: string }[] = [
+  {
+    id: '',
+    label: 'All Cities',
+    emoji: '🗺️',
+    activeClass: 'bg-gray-800 text-white shadow-md',
+    countClass: 'bg-white/20 text-white',
+    cardBadge: '',
+  },
+  {
+    id: 'Gurugram',
+    label: 'Gurugram',
+    emoji: '🏙️',
+    activeClass: 'bg-violet-600 text-white shadow-md shadow-violet-200',
+    countClass: 'bg-white/25 text-white',
+    cardBadge: 'bg-violet-100 text-violet-700 ring-1 ring-violet-200',
+  },
+  {
+    id: 'Delhi',
+    label: 'Delhi',
+    emoji: '🏛️',
+    activeClass: 'bg-amber-500 text-white shadow-md shadow-amber-200',
+    countClass: 'bg-white/25 text-white',
+    cardBadge: 'bg-amber-100 text-amber-700 ring-1 ring-amber-200',
+  },
+]
+
 export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([])
+  const [allJobs, setAllJobs] = useState<Job[]>([]) // unfiltered, for counts
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [filters, setFilters] = useState({ type: '', location: '', search: '' })
+  const [cityFilter, setCityFilter] = useState<CityFilter>('')
+  const [filters, setFilters] = useState({ type: '', search: '' })
   const [lastFetched, setLastFetched] = useState<Date | null>(null)
   const [timeAgoText, setTimeAgoText] = useState('')
   const [diff, setDiff] = useState<Diff | null>(null)
@@ -42,9 +73,16 @@ export default function JobsPage() {
 
   const fetchJobs = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
+
+    // Fetch all jobs for city counts
+    const allRes = await fetch('/api/jobs')
+    const all: Job[] = await allRes.json()
+    setAllJobs(all)
+
+    // Fetch filtered jobs
     const params = new URLSearchParams()
+    if (cityFilter) params.set('location', cityFilter)
     if (filters.type) params.set('type', filters.type)
-    if (filters.location) params.set('location', filters.location)
     if (filters.search) params.set('search', filters.search)
 
     const res = await fetch(`/api/jobs?${params}`)
@@ -57,11 +95,7 @@ export default function JobsPage() {
       const newIds = new Set(newJobs.map(j => j.id))
       const added = newJobs.filter(j => !prevIds.has(j.id))
       const removed = prev.filter(j => !newIds.has(j.id))
-      if (added.length > 0 || removed.length > 0) {
-        setDiff({ added, removed })
-      } else {
-        setDiff({ added: [], removed: [] })
-      }
+      setDiff(added.length > 0 || removed.length > 0 ? { added, removed } : { added: [], removed: [] })
       setRefreshing(false)
     }
 
@@ -70,22 +104,27 @@ export default function JobsPage() {
     setLastFetched(now)
     setTimeAgoText(timeAgo(now))
     setLoading(false)
-  }, [filters])
+  }, [cityFilter, filters])
 
   const AUTO_REFRESH_MS = 4 * 60 * 60 * 1000
 
   useEffect(() => { fetchJobs(false) }, [fetchJobs])
-
   useEffect(() => {
     const interval = setInterval(() => fetchJobs(true), AUTO_REFRESH_MS)
     return () => clearInterval(interval)
   }, [fetchJobs, AUTO_REFRESH_MS])
-
   useEffect(() => {
     if (!lastFetched) return
     const interval = setInterval(() => setTimeAgoText(timeAgo(lastFetched)), 15000)
     return () => clearInterval(interval)
   }, [lastFetched])
+
+  // City counts from full list
+  const cityCounts: Record<string, number> = {
+    '': allJobs.length,
+    'Gurugram': allJobs.filter(j => j.location === 'Gurugram').length,
+    'Delhi': allJobs.filter(j => j.location === 'Delhi').length,
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -102,7 +141,8 @@ export default function JobsPage() {
               <h1 className="text-3xl font-extrabold">Job Listings</h1>
             </div>
             <p className="text-sky-100 text-base">
-              {loading ? 'Loading positions…' : `${jobs.length} ENT positions found in Delhi-NCR`}
+              {loading ? 'Loading positions…' : `${jobs.length} ENT positions found`}
+              {cityFilter && ` in ${cityFilter}`}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -119,6 +159,51 @@ export default function JobsPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* ── City Toggle ── BIG and prominent ── */}
+      <div className="card-flat">
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Filter by City</p>
+        <div className="grid grid-cols-3 gap-3">
+          {cityTabs.map(tab => {
+            const count = cityCounts[tab.id] ?? 0
+            const isActive = cityFilter === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setCityFilter(tab.id)}
+                className={`relative flex flex-col items-center gap-1.5 py-4 px-3 rounded-2xl font-semibold transition-all duration-200 active:scale-95 ${
+                  isActive
+                    ? tab.activeClass
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                <span className="text-2xl leading-none">{tab.emoji}</span>
+                <span className="text-sm font-bold">{tab.label}</span>
+                <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                  isActive ? tab.countClass : 'bg-gray-200 text-gray-600'
+                }`}>
+                  {count} jobs
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        {cityFilter && (
+          <div className={`mt-3 flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-xl ${
+            cityFilter === 'Gurugram' ? 'bg-violet-50 text-violet-700' : 'bg-amber-50 text-amber-700'
+          }`}>
+            <span>{cityFilter === 'Gurugram' ? '🏙️' : '🏛️'}</span>
+            Showing jobs in <strong>{cityFilter}</strong>
+            <button
+              onClick={() => setCityFilter('')}
+              className="ml-auto text-xs underline opacity-60 hover:opacity-100"
+            >
+              Show all
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Diff Banner ── */}
@@ -154,21 +239,21 @@ export default function JobsPage() {
         </div>
       )}
 
-      {/* ── Filters ── */}
+      {/* ── Additional Filters ── */}
       <div className="card-flat">
         <div className="flex items-center gap-2 mb-4">
           <Filter className="h-4 w-4 text-gray-500" />
-          <span className="font-semibold text-gray-700">Filters</span>
-          {(filters.search || filters.type || filters.location) && (
+          <span className="font-semibold text-gray-700">More Filters</span>
+          {(filters.search || filters.type) && (
             <button
-              onClick={() => setFilters({ type: '', location: '', search: '' })}
+              onClick={() => setFilters({ type: '', search: '' })}
               className="ml-auto text-xs text-primary-600 hover:text-primary-700 font-medium"
             >
-              Clear all
+              Clear
             </button>
           )}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="relative">
             <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
             <input
@@ -184,19 +269,10 @@ export default function JobsPage() {
             value={filters.type}
             onChange={e => setFilters(f => ({ ...f, type: e.target.value }))}
           >
-            <option value="">All Types</option>
+            <option value="">All Types (Govt / Private / Startup)</option>
             <option value="govt">Government</option>
             <option value="private">Private</option>
             <option value="startup">Startup</option>
-          </select>
-          <select
-            className="select-field"
-            value={filters.location}
-            onChange={e => setFilters(f => ({ ...f, location: e.target.value }))}
-          >
-            <option value="">All Locations</option>
-            <option value="Gurugram">Gurugram</option>
-            <option value="Delhi">Delhi</option>
           </select>
         </div>
       </div>
@@ -221,7 +297,7 @@ export default function JobsPage() {
         <div className="text-center py-16 text-gray-500">
           <Briefcase className="h-12 w-12 mx-auto text-gray-300 mb-3" />
           <p className="font-medium">No jobs found matching your filters.</p>
-          <p className="text-sm mt-1">Try removing some filters or check back later.</p>
+          <p className="text-sm mt-1">Try a different city or remove other filters.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -231,33 +307,28 @@ export default function JobsPage() {
             const isNew = diff?.added.some(j => j.id === job.id)
             const salaryText = formatSalary(job.salary_min, job.salary_max, job.salary_text)
 
+            const cityMeta = cityTabs.find(t => t.id === job.location) ?? cityTabs[0]
+
             const urgencyBadge =
-              urgency === 'red'
-                ? 'badge-red'
-                : urgency === 'yellow'
-                ? 'badge-yellow'
-                : urgency === 'gray'
-                ? 'bg-gray-100 text-gray-600'
-                : 'badge-green'
+              urgency === 'red' ? 'badge-red' :
+              urgency === 'yellow' ? 'badge-yellow' :
+              urgency === 'gray' ? 'bg-gray-100 text-gray-600' :
+              'badge-green'
 
             const typeBadge =
-              job.type === 'govt'
-                ? 'badge-green'
-                : job.type === 'startup'
-                ? 'badge-purple'
-                : 'badge-blue'
+              job.type === 'govt' ? 'badge-green' :
+              job.type === 'startup' ? 'badge-purple' :
+              'badge-blue'
 
             const typeGradient =
-              job.type === 'govt'
-                ? 'from-emerald-400 to-teal-600'
-                : job.type === 'startup'
-                ? 'from-violet-400 to-purple-600'
-                : 'from-sky-400 to-blue-600'
+              job.type === 'govt' ? 'from-emerald-400 to-teal-600' :
+              job.type === 'startup' ? 'from-violet-400 to-purple-600' :
+              'from-sky-400 to-blue-600'
 
             return (
               <div
                 key={job.id}
-                className={`card hover:shadow-card-hover transition-all duration-300 ${
+                className={`card transition-all duration-300 ${
                   isNew ? 'ring-2 ring-emerald-400 bg-emerald-50/20' : ''
                 }`}
               >
@@ -268,7 +339,7 @@ export default function JobsPage() {
                 )}
 
                 <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-                  {/* Icon */}
+                  {/* Gradient type icon */}
                   <div className={`stat-icon flex-shrink-0 bg-gradient-to-br ${typeGradient} shadow-sm self-start`}>
                     <Briefcase className="h-5 w-5 text-white" />
                   </div>
@@ -285,13 +356,28 @@ export default function JobsPage() {
                       <span className={`badge ${typeBadge}`}>{job.type.toUpperCase()}</span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
-                      <span className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-1.5">
+                      <span className="flex items-center gap-1 text-sm text-gray-500">
                         <MapPin className="h-3.5 w-3.5 text-gray-400" />
-                        {job.hospital_name} · {job.location}
+                        {job.hospital_name}
                       </span>
+
+                      {/* City badge — color-coded */}
+                      {job.location && (
+                        <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${
+                          job.location === 'Gurugram'
+                            ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-200'
+                            : job.location === 'Delhi'
+                            ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200'
+                            : 'bg-slate-100 text-slate-700 ring-1 ring-slate-200'
+                        }`}>
+                          <span className="text-xs">{cityMeta.emoji}</span>
+                          {job.location}
+                        </span>
+                      )}
+
                       {salaryText && (
-                        <span className="flex items-center gap-1 font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+                        <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
                           <IndianRupee className="h-3 w-3" />
                           {salaryText}
                         </span>
@@ -305,7 +391,7 @@ export default function JobsPage() {
                     )}
                   </div>
 
-                  {/* Right column: urgency + actions */}
+                  {/* Right: urgency + actions */}
                   <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 flex-shrink-0">
                     {(job.walk_in_date || job.walk_in_recurring || job.deadline) && (
                       <span className={`badge ${urgencyBadge} text-xs`}>
