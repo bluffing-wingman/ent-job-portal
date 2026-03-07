@@ -122,11 +122,11 @@ function initializeSchema(db: Database.Database) {
 }
 
 function seedIfEmpty(db: Database.Database) {
-  const count = (db.prepare('SELECT COUNT(*) as c FROM hospitals').get() as { c: number }).c;
-  if (count > 0) return; // Already seeded
+  // Use INSERT OR IGNORE so new entries from data.ts are added even if DB already has data
+  // (hospitals and portals have UNIQUE constraints on name, checklist_items on title+sort_order)
 
   // Seed hospitals
-  const insertHospital = db.prepare(`INSERT INTO hospitals (name, location, tier, type, career_url, website_url, ent_dept_info) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+  const insertHospital = db.prepare(`INSERT OR IGNORE INTO hospitals (name, location, tier, type, career_url, website_url, ent_dept_info) VALUES (?, ?, ?, ?, ?, ?, ?)`);
   const hospTx = db.transaction(() => {
     for (const h of hospitals) {
       insertHospital.run(h.name, h.location, h.tier, h.type, h.career_url, h.website_url, h.ent_dept_info);
@@ -134,17 +134,20 @@ function seedIfEmpty(db: Database.Database) {
   });
   hospTx();
 
-  // Seed jobs
-  const insertJob = db.prepare(`INSERT INTO jobs (title, hospital_name, location, type, salary_min, salary_max, salary_text, walk_in_date, walk_in_recurring, deadline, apply_url, description, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-  const jobTx = db.transaction(() => {
-    for (const j of jobs) {
-      insertJob.run(j.title, j.hospital_name, j.location, j.type, j.salary_min, j.salary_max, j.salary_text, j.walk_in_date, j.walk_in_recurring, j.deadline, j.apply_url, j.description, j.source);
-    }
-  });
-  jobTx();
+  const jobCount = (db.prepare('SELECT COUNT(*) as c FROM jobs').get() as { c: number }).c;
+  if (jobCount === 0) {
+    // Seed jobs only on first init (jobs are managed dynamically after that)
+    const insertJob = db.prepare(`INSERT INTO jobs (title, hospital_name, location, type, salary_min, salary_max, salary_text, walk_in_date, walk_in_recurring, deadline, apply_url, description, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const jobTx = db.transaction(() => {
+      for (const j of jobs) {
+        insertJob.run(j.title, j.hospital_name, j.location, j.type, j.salary_min, j.salary_max, j.salary_text, j.walk_in_date, j.walk_in_recurring, j.deadline, j.apply_url, j.description, j.source);
+      }
+    });
+    jobTx();
+  }
 
   // Seed portals
-  const insertPortal = db.prepare(`INSERT INTO portals (name, category, url, search_url, description, is_registered) VALUES (?, ?, ?, ?, ?, ?)`);
+  const insertPortal = db.prepare(`INSERT OR IGNORE INTO portals (name, category, url, search_url, description, is_registered) VALUES (?, ?, ?, ?, ?, ?)`);
   const portalTx = db.transaction(() => {
     for (const p of portals) {
       insertPortal.run(p.name, p.category, p.url, p.search_url, p.description, p.is_registered ? 1 : 0);
@@ -152,14 +155,17 @@ function seedIfEmpty(db: Database.Database) {
   });
   portalTx();
 
-  // Seed checklist
-  const insertChecklist = db.prepare(`INSERT INTO checklist_items (title, url, category, sort_order) VALUES (?, ?, ?, ?)`);
-  const checkTx = db.transaction(() => {
-    for (const c of checklistItems) {
-      insertChecklist.run(c.title, c.url, c.category, c.sort_order);
-    }
-  });
-  checkTx();
+  const checklistCount = (db.prepare('SELECT COUNT(*) as c FROM checklist_items').get() as { c: number }).c;
+  if (checklistCount === 0) {
+    // Seed checklist only on first init
+    const insertChecklist = db.prepare(`INSERT INTO checklist_items (title, url, category, sort_order) VALUES (?, ?, ?, ?)`);
+    const checkTx = db.transaction(() => {
+      for (const c of checklistItems) {
+        insertChecklist.run(c.title, c.url, c.category, c.sort_order);
+      }
+    });
+    checkTx();
+  }
 }
 
 export default getDb;

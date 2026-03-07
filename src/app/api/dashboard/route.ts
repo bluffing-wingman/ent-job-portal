@@ -13,7 +13,10 @@ export async function GET() {
   const upcomingDeadlines = (db.prepare("SELECT COUNT(*) as count FROM jobs WHERE is_active = 1 AND deadline > date('now')").get() as { count: number }).count
 
   const urgentJobs = db.prepare(`
-    SELECT * FROM jobs WHERE is_active = 1 AND (walk_in_date IS NOT NULL OR walk_in_recurring IS NOT NULL)
+    SELECT * FROM jobs WHERE is_active = 1 AND (
+      walk_in_recurring IS NOT NULL
+      OR (walk_in_date IS NOT NULL AND walk_in_date >= date('now'))
+    )
     ORDER BY walk_in_date ASC
   `).all() as Job[]
 

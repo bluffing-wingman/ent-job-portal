@@ -210,6 +210,13 @@ export const hospitals: Hospital[] = [
   { id: 62, name: 'Pathania ENT Clinic', location: 'Gurugram', tier: 'clinic', type: 'private', career_url: null, website_url: 'https://pathaniaentclinic.com', ent_dept_info: 'Dr. Prof. Vishal Pathania, ear-nose-throat & neck disorders, hearing aids' },
   { id: 63, name: 'Dr. Manorama\'s ENT Clinic', location: 'Gurugram', tier: 'clinic', type: 'private', career_url: null, website_url: 'https://www.drmanoramaent.com', ent_dept_info: 'ENT treatments and allergy specialist' },
 
+  // ===== TIER 1 - Additional Gurugram =====
+  { id: 71, name: 'Shalby Sanar International Hospital', location: 'Gurugram', tier: 'tier1', type: 'private', career_url: 'https://www.shalbyinternational.com/careers', website_url: 'https://www.shalbyinternational.com', ent_dept_info: 'Dept of ENT, Cochlear Implant & Voice Disorders; 150-bed superspecialty; cochlear implants, FESS, skull base surgery, laser voice surgery. Golf Course Road, Sector 53.' },
+
+  // ===== TIER 2 - Additional Gurugram =====
+  { id: 72, name: 'Healic Multispecialty Hospital', location: 'Gurugram', tier: 'tier2', type: 'private', career_url: null, website_url: 'https://www.healic.in', ent_dept_info: 'ENT surgical unit with precision care; 24/7 emergency; locations at Sector 50 and Sohna Road (Sector 68).' },
+  { id: 73, name: 'Rainbow Children\'s Hospital', location: 'Gurugram', tier: 'tier2', type: 'private', career_url: 'https://www.rainbowhospitals.in/careers', website_url: 'https://www.rainbowhospitals.in', ent_dept_info: 'Pediatric ENT unit; dedicated pediatric multispecialty chain; Sector 82.' },
+
   // ===== MEDICAL COLLEGES (Delhi & Gurugram only) =====
   { id: 64, name: 'MAMC & Lok Nayak Hospital (LNJP)', location: 'Delhi', tier: 'college', type: 'govt', career_url: 'https://lnjp.delhi.gov.in', website_url: 'https://lnjp.delhi.gov.in', ent_dept_info: 'Maulana Azad Medical College, ENT OPD 400-500 patients/day, MS ENT & DNB programs' },
   { id: 65, name: 'UCMS & GTB Hospital', location: 'Delhi', tier: 'college', type: 'govt', career_url: 'https://gtbh.delhi.gov.in', website_url: 'https://gtbh.delhi.gov.in', ent_dept_info: 'Delhi University college, ENT excels in bionic cochlear implants, UG/PG training' },
