@@ -137,10 +137,10 @@ function seedIfEmpty(db: Database.Database) {
   const jobCount = (db.prepare('SELECT COUNT(*) as c FROM jobs').get() as { c: number }).c;
   if (jobCount === 0) {
     // Seed jobs only on first init (jobs are managed dynamically after that)
-    const insertJob = db.prepare(`INSERT INTO jobs (title, hospital_name, location, type, salary_min, salary_max, salary_text, walk_in_date, walk_in_recurring, deadline, apply_url, description, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const insertJob = db.prepare(`INSERT INTO jobs (title, hospital_name, location, type, salary_min, salary_max, salary_text, walk_in_date, walk_in_recurring, deadline, apply_url, description, source, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     const jobTx = db.transaction(() => {
       for (const j of jobs) {
-        insertJob.run(j.title, j.hospital_name, j.location, j.type, j.salary_min, j.salary_max, j.salary_text, j.walk_in_date, j.walk_in_recurring, j.deadline, j.apply_url, j.description, j.source);
+        insertJob.run(j.title, j.hospital_name, j.location, j.type, j.salary_min, j.salary_max, j.salary_text, j.walk_in_date, j.walk_in_recurring, j.deadline, j.apply_url, j.description, j.source, j.is_active ? 1 : 0);
       }
     });
     jobTx();
